@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>File List</title>
+</head>
+<body>
+    <h1>File List</h1>
+    <ul>
+        {% for file in files %}
+            <li>
+                {{ file.name }} - <a href="{% url 'process' file.pk %}">Process</a>
+            </li>
+        {% endfor %}
+    </ul>
+    <a href="{% url 'upload_file' %}">Upload New File</a>
+</body>
+</html>

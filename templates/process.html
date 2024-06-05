@@ -1,0 +1,140 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>NDVI Stats</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+    <link rel="stylesheet" href="{% static 'lib/leaflet-measure.css' %}" />
+    <link rel="stylesheet" href="{% static 'lib/MarkerCluster.css' %}" />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="{% static 'lib/MarkerCluster.Default.css' %}"
+    />
+    <link rel="stylesheet" href="{% static 'dist/style.css' %}" />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+        padding: 0;
+        background-color: #f4f4f4;
+        color: #333;
+      }
+      #map {
+        height: 600px;
+        margin-top: 20px;
+      }
+      h2 {
+        color: #444;
+      }
+      .leaflet-control-container .leaflet-control-attribution {
+        display: none;
+      }
+      .btn {
+        background-color: #008cba;
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        cursor: pointer;
+        font-size: 16px;
+        margin-top: 10px;
+        transition: background-color 0.3s ease;
+      }
+      .btn:hover {
+        background-color: #005f73;
+      }
+    </style>
+</head>
+<body>
+    <h2>Total Emission: {{ total_emission }}</h2>
+    <button id="zoom-btn" class="btn">Zoom to Layer</button>
+    <div id="map"></div>
+   
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"
+      integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    ></script>
+    <script src="https://cdn.jsdelivr.net/npm/shpjs@3.6.2/dist/shp.min.js"></script>
+    <script src="https://unpkg.com/plotty@0.5.0/dist/plotty.min.js"></script>
+    <script src="https://unpkg.com/leaflet-geotiff@2.4.0/dist/leaflet-geotiff.min.js"></script>
+    <script src="https://unpkg.com/leaflet-geotiff@2.4.0/dist/leaflet-geotiff-plotty.min.js"></script>
+    <script>
+      $(document).ready(function() {
+        var map = L.map('map').setView([0, 0], 2);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19
+        }).addTo(map);
+
+        var shapefileUrl = "{{ shapefile_url }}";
+        var rasterUrl = "{{ raster_url }}";
+
+        var geoJsonLayer;
+
+        // Fetch and display shapefile from S3
+        fetch(shapefileUrl)
+          .then(response => {
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            return response.arrayBuffer();
+          })
+          .then(buffer => {
+            shp(buffer).then(function(geojson) {
+              geoJsonLayer = L.geoJSON(geojson).addTo(map);
+              map.fitBounds(geoJsonLayer.getBounds());
+            }).catch(error => console.error('Error converting shapefile to GeoJSON:', error));
+          })
+          .catch(error => console.error('Error loading shapefile:', error));
+
+        // Fetch and display raster from S3
+        fetch(rasterUrl)
+          .then(response => {
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            return response.arrayBuffer();
+          })
+          .then(buffer => {
+            var blob = new Blob([buffer]);
+            var url = URL.createObjectURL(blob);
+            var tiffLayer = L.leafletGeotiff(url, {
+              band: 0,
+              renderer: L.LeafletGeotiff.plotty({
+                displayMin: 0,
+                displayMax: 255,
+                colorScale: 'viridis'
+              })
+            }).addTo(map);
+            map.fitBounds(tiffLayer.getBounds());
+          })
+          .catch(error => console.error('Error loading raster:', error));
+
+        // Zoom to layer button
+        document.getElementById('zoom-btn').addEventListener('click', function() {
+          if (geoJsonLayer) {
+            map.fitBounds(geoJsonLayer.getBounds());
+          } else {
+            alert('GeoJSON layer is not loaded yet.');
+          }
+        });
+      });
+    </script>
+  </body>
+</html>

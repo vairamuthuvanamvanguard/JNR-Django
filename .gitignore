@@ -1,0 +1,14 @@
+# Ignore everything
+/*
+
+# Except for these files and directories
+!/.gitignore
+!/manage.py
+!/backend/
+!/jnr/
+# !/out/
+# !/precomputed_results/
+!/result.png
+!/static/
+.env
+!/templates/
